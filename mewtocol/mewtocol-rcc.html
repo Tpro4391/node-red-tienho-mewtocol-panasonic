@@ -1,0 +1,124 @@
+<script type="text/javascript">
+(function () {
+    function stationValid(v) {
+        if (v === "" || v === undefined || v === null) return true;
+        v = String(v).trim().toUpperCase();
+        return v === "EE" || (/^\d{1,2}$/.test(v) && +v >= 1 && +v <= 99);
+    }
+    function addrValid(max) {
+        return function (v) {
+            if (v === "" || v === undefined || v === null) return true;
+            return /^\d+$/.test(String(v).trim()) && +v <= max;
+        };
+    }
+    RED.nodes.registerType("mewtocol-rcc", {
+        category: "Mewtocol",
+        color: "#3FADB5",
+        defaults: {
+            name: { value: "" },
+            server: { value: "", type: "mewtocol-client", required: true },
+            station: { value: 1, validate: stationValid },
+            area: { value: "X", required: true },
+            startaddress: { value: "", validate: addrValid(9999) },
+            endaddress: { value: "", validate: addrValid(9999) },
+            datatype: { value: "int16" },
+            alwaysarray: { value: false },
+            sendonerror: { value: true }
+        },
+        inputs: 1,
+        outputs: 2,
+        inputLabels: ["command"],
+        outputLabels: ["output", "error"],
+        icon: "font-awesome/fa-microchip",
+        paletteLabel: "RCC",
+        label: function () {
+            return this.name || "RCC" + ((this.startaddress !== "" ? " " + (this.area || "") + this.startaddress + (this.endaddress !== "" && this.endaddress != this.startaddress ? "-" + this.endaddress : "") : ""));
+        },
+        labelStyle: function () {
+            return this.name ? "node_label_italic" : "";
+        },
+        oneditprepare: function () {
+            $("#node-input-area").typedInput({ types: [{ value: "area", options: [{ value: "X", label: "X" }, { value: "Y", label: "Y" }, { value: "R", label: "R" }, { value: "L", label: "L" }] }] });
+            if (!this.datatype) $("#node-input-datatype").val("int16"); // nodes created with 0.0.x
+        },
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="mewtocol-rcc">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-plug"></i> Connection</label>
+        <input type="text" id="node-input-server" placeholder="Connection">
+    </div>
+    <div class="form-row">
+        <label for="node-input-station"><i class="fa fa-th"></i> Station</label>
+        <input type="text" id="node-input-station" placeholder="Station">
+    </div>
+    <div class="form-row">
+        <label for="node-input-area"><i class="fa fa-map"></i> Memory area</label>
+        <input type="text" id="node-input-area" placeholder="Memory area">
+    </div>
+    <div class="form-row">
+        <label for="node-input-startaddress"><i class="fa fa-arrow-circle-left"></i> Start address</label>
+        <input type="text" id="node-input-startaddress" placeholder="Start address">
+    </div>
+    <div class="form-row">
+        <label for="node-input-endaddress"><i class="fa fa-arrow-circle-right"></i> End address</label>
+        <input type="text" id="node-input-endaddress" placeholder="End address">
+    </div>
+    <div class="form-row">
+        <label for="node-input-datatype"><i class="fa fa-cube"></i> Data type</label>
+        <select id="node-input-datatype"><option value="int16">INT16 (signed 16-bit)</option><option value="uint16">UINT16 (unsigned 16-bit)</option><option value="hex">HEX string per word</option><option value="bits">Bits (16 x 0/1 per word, LSB first)</option></select>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-alwaysarray" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-alwaysarray" style="width:auto;">Always output an array (also for a single value)</label>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-sendonerror" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-sendonerror" style="width:auto;">Also send message with empty payload on output 1 on error</label>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="mewtocol-rcc">
+    <p>Read contact words &ndash; MEWTOCOL-COM <code>RCC</code>.</p>
+    <p>Reads contact areas X, Y, R, L as 16-bit words (word address, e.g. WR10 = R100..R10F).</p>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">station <span class="property-type">number | string</span></dt>
+        <dd>PLC station number 1-99 or <code>EE</code> (global). Overrides the node setting.</dd>
+        <dt class="optional">area <span class="property-type">string</span></dt>
+        <dd>Memory area: X, Y, R, L.</dd>
+        <dt class="optional">startaddress <span class="property-type">number</span></dt>
+        <dd>First address to read.</dd>
+        <dt class="optional">endaddress <span class="property-type">number</span></dt>
+        <dd>Last address to read (inclusive).</dd>
+        <dt class="optional">datatype <span class="property-type">string</span></dt>
+        <dd>Override the data type: int16, uint16, hex, bits.</dd>
+    </dl>
+    <p>Properties set in the message take priority over the node settings. <code>0</code> is a valid value.</p>
+    <h3>Outputs</h3>
+    <ol class="node-ports">
+        <li>Output
+            <dl class="message-properties">
+                <dt>payload</dt><dd>A single value, or an array when more than one value was read.</dd>
+                <dt>mewtocol <span class="property-type">object</span></dt><dd>Details of the executed command.</dd>
+            </dl>
+        </li>
+        <li>Error
+            <dl class="message-properties">
+                <dt>error <span class="property-type">string</span></dt><dd>Error text.</dd>
+                <dt>errorCode <span class="property-type">string</span></dt><dd><code>EPARAM</code>, <code>EPLC</code>, <code>ETIMEDOUT</code>, <code>ECONN</code>, <code>EBCC</code>, <code>EPROTO</code>, <code>EQUEUEFULL</code>.</dd>
+                <dt>plcErrorCode <span class="property-type">number</span></dt><dd>MEWTOCOL error code returned by the PLC (only for <code>EPLC</code>).</dd>
+            </dl>
+        </li>
+    </ol>
+    <p>All other message properties are kept. Errors are also reported to <i>Catch</i> nodes.</p>
+    <p>Large ranges are split into several commands automatically so that each frame fits the frame size of the connection.</p>
+</script>

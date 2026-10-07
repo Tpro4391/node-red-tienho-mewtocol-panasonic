@@ -1,0 +1,71 @@
+{
+  "name": "@tpro4391/node-red-tienho-mewtocol-panasonic",
+  "version": "1.0.0",
+  "description": "Panasonic PLC MEWTOCOL-COM over TCP for Node-RED: shared queued connection, read and write nodes (FP-X, FP0H, FP7, ...)",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "node --test test/protocol.test.js test/client.test.js test/nodes.test.js"
+  },
+  "author": "Tpro4391",
+  "contributors": [
+    "Oleg Aroslanov (original node-red-contrib-mewtocol)"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "keywords": [
+    "node-red",
+    "mewtocol",
+    "panasonic",
+    "plc",
+    "fp-x",
+    "fp0h",
+    "fp7",
+    "automation",
+    "industrial"
+  ],
+  "engines": {
+    "node": ">=14"
+  },
+  "node-red": {
+    "version": ">=2.0.0",
+    "nodes": {
+      "Mewtocol-Client": "mewtocol/mewtocol-client.js",
+      "Mewtocol-RD": "mewtocol/mewtocol-rd.js",
+      "Mewtocol-RCC": "mewtocol/mewtocol-rcc.js",
+      "Mewtocol-RCS": "mewtocol/mewtocol-rcs.js",
+      "Mewtocol-RCP": "mewtocol/mewtocol-rcp.js",
+      "Mewtocol-RT": "mewtocol/mewtocol-rt.js",
+      "Mewtocol-RR": "mewtocol/mewtocol-rr.js",
+      "Mewtocol-RS": "mewtocol/mewtocol-rs.js",
+      "Mewtocol-RK": "mewtocol/mewtocol-rk.js",
+      "Mewtocol-WD": "mewtocol/mewtocol-wd.js",
+      "Mewtocol-WCC": "mewtocol/mewtocol-wcc.js",
+      "Mewtocol-WCS": "mewtocol/mewtocol-wcs.js",
+      "Mewtocol-WS": "mewtocol/mewtocol-ws.js",
+      "Mewtocol-WK": "mewtocol/mewtocol-wk.js",
+      "Mewtocol-RAW": "mewtocol/mewtocol-raw.js"
+    }
+  },
+  "files": [
+    "lib/**/*",
+    "mewtocol/**/*",
+    "examples/**/*",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "node-red": "^4.0.0",
+    "node-red-node-test-helper": "^0.3.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tpro4391/node-red-tienho-mewtocol-panasonic.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Tpro4391/node-red-tienho-mewtocol-panasonic/issues"
+  },
+  "homepage": "https://github.com/Tpro4391/node-red-tienho-mewtocol-panasonic#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,81 @@
+<script type="text/javascript">
+    RED.nodes.registerType("mewtocol-client", {
+        category: "config",
+        defaults: {
+            name: { value: "" },
+            host: { value: "", required: true, validate: RED.validators.regex(/^[A-Za-z0-9.\-:\[\]_]+$/) },
+            port: { value: 9094, required: true, validate: function (v) { return /^\d+$/.test(String(v)) && +v > 0 && +v < 65536; } },
+            timeout: { value: 5000, required: true, validate: function (v) { return /^\d+$/.test(String(v)) && +v >= 100; } },
+            framemode: { value: "standard" },
+            bcc: { value: true },
+            keepalive: { value: true },
+            maxqueue: { value: 100, validate: function (v) { return v === "" || v === undefined || v === null || (/^\d+$/.test(String(v)) && +v > 0); } }
+        },
+        label: function () {
+            return this.name || (this.host + ":" + this.port);
+        },
+        oneditprepare: function () {
+            // configs created with 0.0.x do not have these properties yet: show the runtime defaults
+            if (!this.framemode) $("#node-config-input-framemode").val("standard");
+            if (this.bcc === undefined) $("#node-config-input-bcc").prop("checked", true);
+            if (this.keepalive === undefined) $("#node-config-input-keepalive").prop("checked", true);
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="mewtocol-client">
+    <div class="form-row">
+        <label for="node-config-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-config-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-host"><i class="fa fa-globe"></i> Host</label>
+        <input type="text" id="node-config-input-host" placeholder="192.168.1.5">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-port"><i class="fa fa-random"></i> Port</label>
+        <input type="text" id="node-config-input-port" placeholder="9094" style="width:100px">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-timeout"><i class="fa fa-hourglass-end"></i> Timeout (ms)</label>
+        <input type="text" id="node-config-input-timeout" placeholder="5000" style="width:100px">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-framemode"><i class="fa fa-arrows-h"></i> Frame</label>
+        <select id="node-config-input-framemode" style="width:70%">
+            <option value="standard">Standard '%' (118 chars, all PLCs)</option>
+            <option value="extended">Extended '&lt;' (2048 chars, FP-X / FP0R / FP7 ...)</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-config-input-bcc" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-config-input-bcc" style="width:auto;">Use and verify BCC checksum</label>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-config-input-keepalive" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-config-input-keepalive" style="width:auto;">Keep connection open (auto reconnect)</label>
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-maxqueue"><i class="fa fa-list-ol"></i> Max queue</label>
+        <input type="text" id="node-config-input-maxqueue" placeholder="100" style="width:100px">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="mewtocol-client">
+    <p>Connection to a Panasonic PLC (MEWTOCOL-COM over TCP, e.g. FP-X ET-LAN, FP0H, FP7, FP-XH, ET-LAN modules or serial-to-Ethernet converters).</p>
+    <p>All nodes using this configuration share <b>one</b> TCP connection. Commands are queued and sent one at a time,
+       as required by MEWTOCOL, so many nodes can poll the same PLC concurrently without opening extra sockets.</p>
+    <h3>Properties</h3>
+    <dl class="message-properties">
+        <dt>Host / Port</dt><dd>IP address or host name and TCP port of the PLC (default 9094).</dd>
+        <dt>Timeout</dt><dd>Connect and response timeout in milliseconds.</dd>
+        <dt>Frame</dt><dd><i>Standard</i> (<code>%</code>) works with every PLC; large reads/writes are split automatically.
+            <i>Extended</i> (<code>&lt;</code>) allows up to 2048 characters per frame (fewer round trips) on PLCs that support it.</dd>
+        <dt>BCC</dt><dd>Calculates the block check code for every command and verifies PLC responses. Disable only for gateways that send <code>**</code>.</dd>
+        <dt>Keep connection open</dt><dd>Keeps the socket open and reconnects automatically with back-off.
+            When disabled, the socket is closed whenever the queue is empty (useful when the PLC allows only a few connections).</dd>
+        <dt>Max queue</dt><dd>Maximum number of waiting commands; further commands are rejected with <code>EQUEUEFULL</code>.</dd>
+    </dl>
+</script>

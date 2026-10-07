@@ -1,0 +1,214 @@
+[
+  {
+    "id": "cmt1",
+    "type": "comment",
+    "name": "Poll DT0-DT9 every second, write DT100 / R10, read PLC status",
+    "info": "All MEWTOCOL nodes share the connection 'PLC'. Change host/port to your PLC.",
+    "x": 330,
+    "y": 40,
+    "wires": []
+  },
+  {
+    "id": "plc",
+    "type": "mewtocol-client",
+    "name": "PLC",
+    "host": "192.168.1.5",
+    "port": "9094",
+    "timeout": "3000",
+    "framemode": "standard",
+    "bcc": true,
+    "keepalive": true,
+    "maxqueue": "100"
+  },
+  {
+    "id": "inj1",
+    "type": "inject",
+    "name": "every 1 s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "once": true,
+    "onceDelay": "1",
+    "payload": "",
+    "payloadType": "date",
+    "x": 130,
+    "y": 100,
+    "wires": [
+      [
+        "rd1"
+      ]
+    ]
+  },
+  {
+    "id": "rd1",
+    "type": "mewtocol-rd",
+    "name": "",
+    "server": "plc",
+    "station": 1,
+    "area": "D",
+    "startaddress": "0",
+    "endaddress": "9",
+    "datatype": "int16",
+    "alwaysarray": false,
+    "sendonerror": false,
+    "x": 330,
+    "y": 100,
+    "wires": [
+      [
+        "dbg1"
+      ],
+      [
+        "dbgErr"
+      ]
+    ]
+  },
+  {
+    "id": "inj2",
+    "type": "inject",
+    "name": "write 1234",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "once": false,
+    "payload": "1234",
+    "payloadType": "num",
+    "x": 130,
+    "y": 160,
+    "wires": [
+      [
+        "wd1"
+      ]
+    ]
+  },
+  {
+    "id": "wd1",
+    "type": "mewtocol-wd",
+    "name": "",
+    "server": "plc",
+    "station": 1,
+    "area": "D",
+    "startaddress": "100",
+    "datatype": "int16",
+    "sendonerror": false,
+    "x": 330,
+    "y": 160,
+    "wires": [
+      [
+        "dbg1"
+      ],
+      [
+        "dbgErr"
+      ]
+    ]
+  },
+  {
+    "id": "inj3",
+    "type": "inject",
+    "name": "R10 ON",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "once": false,
+    "payload": "true",
+    "payloadType": "bool",
+    "x": 130,
+    "y": 220,
+    "wires": [
+      [
+        "wcs1"
+      ]
+    ]
+  },
+  {
+    "id": "wcs1",
+    "type": "mewtocol-wcs",
+    "name": "",
+    "server": "plc",
+    "station": 1,
+    "area": "R",
+    "address": "10",
+    "sendonerror": false,
+    "x": 330,
+    "y": 220,
+    "wires": [
+      [
+        "dbg1"
+      ],
+      [
+        "dbgErr"
+      ]
+    ]
+  },
+  {
+    "id": "inj4",
+    "type": "inject",
+    "name": "status",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "once": false,
+    "payload": "",
+    "payloadType": "date",
+    "x": 130,
+    "y": 280,
+    "wires": [
+      [
+        "rt1"
+      ]
+    ]
+  },
+  {
+    "id": "rt1",
+    "type": "mewtocol-rt",
+    "name": "",
+    "server": "plc",
+    "station": 1,
+    "sendonerror": false,
+    "x": 330,
+    "y": 280,
+    "wires": [
+      [
+        "dbg1"
+      ],
+      [
+        "dbgErr"
+      ]
+    ]
+  },
+  {
+    "id": "dbg1",
+    "type": "debug",
+    "name": "result",
+    "active": true,
+    "tosidebar": true,
+    "complete": "true",
+    "targetType": "full",
+    "x": 560,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "dbgErr",
+    "type": "debug",
+    "name": "error",
+    "active": true,
+    "tosidebar": true,
+    "complete": "error",
+    "targetType": "msg",
+    "x": 560,
+    "y": 240,
+    "wires": []
+  }
+]
