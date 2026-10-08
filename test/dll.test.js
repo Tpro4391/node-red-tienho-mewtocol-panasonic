@@ -21,14 +21,20 @@ const FIXTURE = {
 const DEVICES = 16;
 for (let d = 1; d <= DEVICES; d++) {
     const name = 'AM-1-' + d;
-    FIXTURE.points.push({ fileNo: 1, regNo: d, name, unit: 'm3', dataStyleCode: 4, scaleOn: true, scale: 0.1 });
-    FIXTURE.points.push({ fileNo: 2, regNo: d, name, unit: 'm3/h', dataStyleCode: d === 3 ? 6 : 4, scaleOn: d !== 3, scale: 0.01 });
-    FIXTURE.points.push({ fileNo: 3, regNo: d, name, unit: '°C', dataStyleCode: 0, scaleOn: true, scale: 0.1 });
-    FIXTURE.points.push({ fileNo: 4, regNo: d, name, unit: 'kPa', dataStyleCode: 0, scaleOn: true, scale: 0.01 });
+    FIXTURE.points.push({ fileNo: 1, regNo: d, name, unitNo: d + 1, unit: 'm3', dataStyleCode: 4, scaleOn: true, scale: 0.1 });
+    FIXTURE.points.push({ fileNo: 2, regNo: d, name, unitNo: d + 1, unit: 'm3/h', dataStyleCode: d === 3 ? 6 : 4, scaleOn: d !== 3, scale: 0.01 });
+    FIXTURE.points.push({ fileNo: 3, regNo: d, name, unitNo: d + 1, unit: '°C', dataStyleCode: 0, scaleOn: true, scale: 0.1 });
+    FIXTURE.points.push({ fileNo: 4, regNo: d, name, unitNo: d + 1, unit: 'kPa', dataStyleCode: 0, scaleOn: true, scale: 0.01 });
 }
 FIXTURE.points.forEach((p, i) => { p.slot = i + 1; });
 
+// units 2..17 answer, except unit 3 (device AM-1-2) -> COM2 status bits in WR20..
+const OFFLINE_UNIT = 3;
 function setValues(plc) {
+    for (let d = 1; d <= DEVICES; d++) {
+        const unit = d + 1;
+        if (unit !== OFFLINE_UNIT) plc.mem.R[20 + (unit >> 4)] |= 1 << (unit & 15);
+    }
     const put32 = (dt, v) => { plc.mem.D[dt] = v & 0xFFFF; plc.mem.D[dt + 1] = (v >>> 16) & 0xFFFF; };
     const putF = (dt, f) => { const b = Buffer.alloc(4); b.writeFloatLE(f); plc.mem.D[dt] = b.readUInt16LE(0); plc.mem.D[dt + 1] = b.readUInt16LE(2); };
     for (let d = 1; d <= DEVICES; d++) {
@@ -103,25 +109,34 @@ test('values -> telemetry payload (device, thingsboard, flat, list) with key map
         plc.requests.length = 0;
         const values = await DLL.readValues(client, cfg);
         // RD only, '%' header, never more than 26 words
-        for (const f of plc.requests) {
+        for (const f of plc.requests.filter(r => !r.includes('#RCC'))) {
             const m = /^%EE#RDD(\d{5})(\d{5})/.exec(f);
             assert.ok(m, 'unexpected request ' + f);
             assert.ok(+m[2] - +m[1] + 1 <= 26);
         }
         const keyMap = '°C=temp\nkPa=press';
         const dev = DLL.buildPayload(values, { keyMap });
-        assert.deepEqual(dev['AM-1-1'], { m3: 123.1, 'm3/h': 87.01, temp: 30.5, press: 0.77 });
-        assert.deepEqual(dev['AM-1-2'], { m3: 123.2, 'm3/h': 87.02, temp: -5.5, press: 0.77 });
+        assert.deepEqual(dev['AM-1-1'], { m3: 123.1, 'm3/h': 87.01, temp: 30.5, press: 0.77, connect: true });
+        assert.deepEqual(dev['AM-1-2'], { m3: null, 'm3/h': null, temp: null, press: null, connect: false });
+        assert.equal(dev['AM-1-4'].temp, 30.5);
+        assert.ok(plc.requests.some(r => r.startsWith('%EE#RCCR00200035')), 'status relays read');
+        const keep = DLL.buildPayload(await DLL.readValues(client, cfg, { onDisconnect: 'keep' }), { keyMap });
+        assert.deepEqual(keep['AM-1-2'], { m3: 123.2, 'm3/h': 87.02, temp: -5.5, press: 0.77, connect: false });
+        const omit = DLL.buildPayload(await DLL.readValues(client, cfg, { onDisconnect: 'omit' }), { keyMap, onDisconnect: 'omit' });
+        assert.deepEqual(omit['AM-1-2'], { connect: false });
+        const noStatus = DLL.buildPayload(await DLL.readValues(client, cfg, { status: false }), { keyMap });
+        assert.equal(noStatus['AM-1-1'].connect, undefined);
         assert.equal(dev['AM-1-3']['m3/h'], 87.25);
         assert.equal(Object.keys(dev).length, 16);
 
         const tb = DLL.buildPayload(values, { keyMap, format: 'thingsboard', ts: 1000 });
-        assert.deepEqual(tb['AM-1-1'], [{ ts: 1000, values: { m3: 123.1, 'm3/h': 87.01, temp: 30.5, press: 0.77 } }]);
+        assert.deepEqual(tb['AM-1-1'], [{ ts: 1000, values: { m3: 123.1, 'm3/h': 87.01, temp: 30.5, press: 0.77, connect: true } }]);
         const flat = DLL.buildPayload(values, { keyMap, format: 'flat' });
         assert.equal(flat['AM-1-16.press'], 0.77);
         const list = DLL.buildPayload(values, { format: 'list' });
         assert.equal(list.length, 64);
         assert.equal(list[0].key, 'm3');
+        assert.equal(list[0].connect, true);
         const byFile = DLL.buildPayload(values, { keySource: 'file', keyMap: { Air_Gas_temp: 't' } });
         assert.equal(byFile['AM-1-1'].t, 30.5);
         assert.equal(byFile['AM-1-1'].Air_Gas_m3, 123.1);
@@ -168,7 +183,10 @@ test('mewtocol-dll node: load config once, save it, output telemetry', async () 
         let p = next('out');
         n1.receive({ topic: 'poll' });
         let msg = await p;
-        assert.deepEqual(msg.payload['AM-1-1'], { m3: 123.1, 'm3/h': 87.01, temp: 30.5, press: 0.77 });
+        assert.deepEqual(msg.payload['AM-1-1'], { m3: 123.1, 'm3/h': 87.01, temp: 30.5, press: 0.77, connect: true });
+        assert.equal(msg.payload['AM-1-2'].connect, false);
+        assert.equal(msg.payload['AM-1-2'].m3, null);
+        assert.equal(msg.dll.disconnected, 4);
         assert.equal(msg.dll.points, 64);
         assert.ok(fs.existsSync(configfile), 'config saved as JSON');
         assert.ok(fs.existsSync(path.join(dir, 'dll.csv')), 'config saved as CSV');

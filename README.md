@@ -109,6 +109,8 @@ Only the IP address is required.
 }
 ```
 
+Each device also gets `"connect": true/false` (DLL status relays R200–R35F for COM2, R0–R15F for COM1, bit = Modbus unit no.). Values of an offline device are sent as `null` (option: keep the 0 from DT, or send only `connect`).
+
 Keys come from the unit (or the logging file name) and can be renamed with the key map, e.g. `°C=temp`, `kPa=press`.
 Output formats: device object (above), **ThingsBoard gateway** (`{"AM-1-1":[{"ts":…,"values":{…}}]}` for MQTT topic
 `v1/gateway/telemetry`), flat (`{"AM-1-1.m3":123}`) or a detailed list.

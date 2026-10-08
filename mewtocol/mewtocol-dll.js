@@ -23,6 +23,8 @@ module.exports = function (RED) {
         node.keysource = config.keysource || 'unit';
         node.keymap = config.keymap || '';
         node.applyScale = config.applyscale !== false;
+        node.readStatus = config.readstatus !== false;
+        node.onDisconnect = config.ondisconnect || 'null'; // null | keep | omit
         node.files = String(config.files || '').split(/[\s,;]+/).map(Number).filter(n => n >= 1 && n <= 16);
         node.cfg = null;
         node.loading = null;
@@ -146,15 +148,16 @@ module.exports = function (RED) {
                 const files = Array.isArray(msg.files) ? msg.files.map(Number) : node.files;
                 const ts = Date.now();
                 const values = await DLL.readValues(node.client, cfg, {
-                    station: node.station, files, applyScale: msg.applyScale !== undefined ? msg.applyScale !== false : node.applyScale
+                    station: node.station, files, status: node.readStatus, onDisconnect: node.onDisconnect, applyScale: msg.applyScale !== undefined ? msg.applyScale !== false : node.applyScale
                 });
                 msg.payload = DLL.buildPayload(values, {
                     format: msg.format || node.format,
                     keyMap: msg.keyMap || node.keymap,
                     keySource: node.keysource,
+                    onDisconnect: node.onDisconnect,
                     ts
                 });
-                msg.dll = { device: cfg.deviceName, host: node.host, ts, points: values.length };
+                msg.dll = { device: cfg.deviceName, host: node.host, ts, points: values.length, disconnected: values.filter(v => v.connect === false).length };
                 status('green', 'dot', summary() + ' @ ' + new Date(ts).toLocaleTimeString());
                 send([msg, null, null]);
                 done();

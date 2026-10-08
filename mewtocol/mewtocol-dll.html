@@ -16,6 +16,8 @@
             keysource: { value: "unit" },
             keymap: { value: "°C=temp\nkPa=press" },
             applyscale: { value: true },
+            readstatus: { value: true },
+            ondisconnect: { value: "null" },
             keepalive: { value: true }
         },
         inputs: 1,
@@ -28,6 +30,8 @@
         labelStyle: function () { return this.name ? "node_label_italic" : ""; },
         oneditprepare: function () {
             var node = this;
+            if (this.readstatus === undefined) $("#node-input-readstatus").prop("checked", true);
+            if (!this.ondisconnect) $("#node-input-ondisconnect").val("null");
             $("#node-input-keymap").css({ height: "90px", fontFamily: "monospace" });
             $("#mewtocol-dll-scan").on("click", function () {
                 var host = $("#node-input-host").val().trim();
@@ -114,6 +118,19 @@
     </div>
     <div class="form-row">
         <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-readstatus" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-readstatus" style="width:auto;">Read connection status (adds <code>"connect": true/false</code>)</label>
+    </div>
+    <div class="form-row">
+        <label for="node-input-ondisconnect"><i class="fa fa-chain-broken"></i> Offline</label>
+        <select id="node-input-ondisconnect" style="width:70%">
+            <option value="null">Send values as null ("m3": null, "connect": false)</option>
+            <option value="keep">Send the DT value anyway (0)</option>
+            <option value="omit">Send only "connect": false</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
         <input type="checkbox" id="node-input-keepalive" style="display:inline-block; width:auto; vertical-align:top;">
         <label for="node-input-keepalive" style="width:auto;">Keep connection open</label>
     </div>
@@ -146,6 +163,11 @@
        The key map renames keys, one <code>from=to</code> per line, e.g. <code>°C=temp</code>, <code>kPa=press</code>,
        <code>Air_Gas_m3=m3</code> or <code>file:3=temp</code>. Use <b>Read config</b> to list the units of your DLL.</p>
     <p>Use the <i>ThingsBoard gateway</i> format with an MQTT out node on topic <code>v1/gateway/telemetry</code>.</p>
+    <h3>Connection status</h3>
+    <p>The DLL keeps one relay bit per serial port and Modbus unit number (COM1: R0–R15F, COM2: R200–R35F,
+       bit = unit no.; 1 = device answers). Each device gets <code>"connect": true/false</code>
+       (false if any of its units does not answer). The DLL returns 0 in DT for a device that does not answer,
+       so by default those values are sent as <code>null</code>.</p>
     <h3>Data</h3>
     <p>File N, registration k is read from <code>DT[(N-1)*1000 + (k-1)*2]</code> (2 words per point) with at most
        26 words per command. Values are decoded with the data style of each point (DEC1W, DEC2W, HEX, Real number)

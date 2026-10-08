@@ -1,6 +1,6 @@
 {
   "name": "@tpro4391/node-red-tienho-mewtocol-panasonic",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Panasonic PLC MEWTOCOL-COM over TCP for Node-RED: shared queued connection, read/write nodes and Data Logger Light (DLL) telemetry",
   "main": "lib/index.js",
   "scripts": {

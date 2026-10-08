@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+- DLL node: connection status per device, key `"connect": true/false`. Read from the DLL status relays
+  (COM1: WR0-WR15, COM2: WR20-WR35, bit = Modbus unit no., as used by Configurator DL "Current value monitor").
+- Values of devices that do not answer are sent as `null` by default (the DLL reports 0 in DT); options: keep / omit.
+- `msg.dll.disconnected` = number of points whose device does not answer.
+
 ## 1.1.0
 - New **DLL** node for Panasonic Data Logger Light: reads the logging configuration from the device
   (Configurator DL command `<EE#3A`, 128 KB setting memory), saves it as JSON/CSV, reads all registered points from
