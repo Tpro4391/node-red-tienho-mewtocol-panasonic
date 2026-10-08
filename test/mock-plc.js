@@ -112,7 +112,7 @@ class MockPLC {
 
     _onFrame(sock, state, frame) {
         // continuation request: %01BCC& / %01**&
-        if (state.pendingFrames && /^[%<]\d\d(..)&$/.test(frame)) {
+        if (state.pendingFrames && /^[%<](\d\d|EE)(..)&$/.test(frame)) {
             const next = state.pendingFrames.shift();
             if (!state.pendingFrames.length) state.pendingFrames = null;
             this._send(sock, next);
@@ -221,6 +221,10 @@ class MockPLC {
         if ((m = /^R([SK])(\d{4})(\d{4})$/.exec(c))) return '$R' + m[1] + this._words(this.mem[m[1] === 'S' ? 'SV' : 'EV'], +m[2], +m[3]);
         if ((m = /^W([SK])(\d{4})(\d{4})([0-9A-F]+)$/.exec(c))) { this._store(this.mem[m[1] === 'S' ? 'SV' : 'EV'], +m[2], +m[3], m[4]); return '$W' + m[1]; }
         if ((m = /^RR0(\d{3})(\d{3})$/.exec(c))) return '$RR' + this._words(this.mem.SR, +m[1], +m[2]);
+        if ((m = /^3A([0-9A-F]{8})([0-9A-F]{8})$/.exec(c)) && this.dllImage) {
+            const a = parseInt(m[1], 16), n = parseInt(m[2], 16);
+            return '$3A' + this.dllImage.subarray(a, a + n).toString('hex').toUpperCase();
+        }
         if (c === 'RT') return '$RT' + '05' + '25' + '32' + '81' + '00' + '20' + '3412';
         throw { code: 42 };
     }

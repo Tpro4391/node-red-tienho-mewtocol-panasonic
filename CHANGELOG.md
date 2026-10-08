@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+- New **DLL** node for Panasonic Data Logger Light: reads the logging configuration from the device
+  (Configurator DL command `<EE#3A`, 128 KB setting memory), saves it as JSON/CSV, reads all registered points from
+  DT (file N → DT(N-1)*1000, 2 words per point, max 26 words per command) and outputs telemetry JSON
+  (device object, ThingsBoard gateway, flat or list) with a configurable key map (e.g. `°C=temp`).
+- Editor button "Read config" lists device, files and units and pre-fills the key map.
+- `lib/dll.js`: decode/encode of the DLL setting memory, JSON/CSV import/export, value decoding for all data styles
+  (DEC1W, DEC1W(Unsigned), HEX4, DEC2W, DEC2W(Unsigned), HEX8, Real number) with scale factor.
+- Connection: per-command header (`%` / `<`) and device word limits (`maxReadWords`, `maxWriteWords`).
+- Example flow `dll-thingsboard`.
+
 ## 1.0.0
 
 First release as **@tpro4391/node-red-tienho-mewtocol-panasonic** (fork of node-red-contrib-mewtocol 0.0.12; node type names unchanged).

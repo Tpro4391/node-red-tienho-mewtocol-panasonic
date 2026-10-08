@@ -53,6 +53,7 @@ Requires Node-RED ≥ 2.0 and Node.js ≥ 14.
 | **WS**  | `WS`  | Write timer/counter set values |
 | **WK**  | `WK`  | Write timer/counter elapsed values |
 | **RAW** | any   | Send any command body, e.g. `RDD0000000009` |
+| **DLL** | `#3A`, `RD` | Data Logger Light: load configuration, read all points, telemetry JSON (ThingsBoard) |
 
 Every node has two outputs: **1 = result**, **2 = error**.
 
@@ -87,6 +88,44 @@ reported to *Catch* nodes.
 | BCC | on | compute and verify the block check code |
 | Keep connection open | on | persistent socket + auto reconnect; off = close when idle |
 | Max queue | 100 | waiting commands before `EQUEUEFULL` |
+
+## Data Logger Light (DLL) → ThingsBoard
+
+The **DLL** node reads the logging configuration of a Panasonic *Data Logger Light* (register names, units, data
+styles, scale factors – the same data Configurator DL shows) and then polls the current value of every registered point.
+Only the IP address is required.
+
+1. Enter the DLL IP and press **Read config** in the edit dialog: device, logging files and units are listed and
+   the key map is pre-filled.
+2. On deploy the configuration is read **once** and saved as JSON + CSV
+   (`<userDir>/mewtocol-dll/<ip>.json`). Later deploys reuse the file; send `msg.topic = "reload"` to read it again.
+3. Every input message reads all points (file N, registration k → `DT[(N-1)*1000 + (k-1)*2]`, max 26 words per command)
+   and outputs for example:
+
+```json
+{
+  "AM-1-1": { "m3": 123, "m3/h": 87, "temp": 30.5, "press": 0.77 },
+  "AM-1-2": { "m3": 125, "m3/h": 88, "temp": 31.5, "press": 0.55 }
+}
+```
+
+Keys come from the unit (or the logging file name) and can be renamed with the key map, e.g. `°C=temp`, `kPa=press`.
+Output formats: device object (above), **ThingsBoard gateway** (`{"AM-1-1":[{"ts":…,"values":{…}}]}` for MQTT topic
+`v1/gateway/telemetry`), flat (`{"AM-1-1.m3":123}`) or a detailed list.
+Example flow: *Import → Examples → dll-thingsboard*.
+
+The configuration file can also be written by hand (CSV columns `fileNo,regNo,name,unit,dataStyle,scaleOn,scale`)
+and selected with *Config = File only*.
+
+Library use:
+
+```js
+const MewtocolClient = require('@tpro4391/node-red-tienho-mewtocol-panasonic');
+const dll = require('@tpro4391/node-red-tienho-mewtocol-panasonic/lib/dll');
+const plc = new MewtocolClient({ host: '192.168.31.112', maxReadWords: 26 });
+const cfg = await dll.readConfig(plc);
+const payload = dll.buildPayload(await dll.readValues(plc, cfg), { keyMap: '°C=temp,kPa=press' });
+```
 
 ## Using the library without Node-RED
 

@@ -1,0 +1,153 @@
+<script type="text/javascript">
+(function () {
+    RED.nodes.registerType("mewtocol-dll", {
+        category: "Mewtocol",
+        color: "#7FB7BE",
+        defaults: {
+            name: { value: "" },
+            host: { value: "", validate: function (v) { return v === "" || /^[A-Za-z0-9.\-:_]+$/.test(v); } },
+            port: { value: 9094, validate: function (v) { return /^\d+$/.test(String(v)) && +v > 0 && +v < 65536; } },
+            timeout: { value: 5000, validate: function (v) { return /^\d+$/.test(String(v)) && +v >= 100; } },
+            station: { value: "EE" },
+            configsource: { value: "auto" },
+            configfile: { value: "" },
+            files: { value: "" },
+            format: { value: "device" },
+            keysource: { value: "unit" },
+            keymap: { value: "°C=temp\nkPa=press" },
+            applyscale: { value: true },
+            keepalive: { value: true }
+        },
+        inputs: 1,
+        outputs: 3,
+        inputLabels: ["read (topic 'reload' = reload config, 'config' = output config)"],
+        outputLabels: ["telemetry", "configuration", "error"],
+        icon: "font-awesome/fa-database",
+        paletteLabel: "DLL",
+        label: function () { return this.name || "DLL " + (this.host || ""); },
+        labelStyle: function () { return this.name ? "node_label_italic" : ""; },
+        oneditprepare: function () {
+            var node = this;
+            $("#node-input-keymap").css({ height: "90px", fontFamily: "monospace" });
+            $("#mewtocol-dll-scan").on("click", function () {
+                var host = $("#node-input-host").val().trim();
+                var out = $("#mewtocol-dll-scan-result");
+                if (!host) { out.text("Enter the IP address first."); return; }
+                out.text("Reading configuration from " + host + " ...");
+                $.getJSON("mewtocol-dll/config", { host: host, port: $("#node-input-port").val(), station: $("#node-input-station").val() })
+                    .done(function (r) {
+                        var files = r.files.map(function (f) { return f.no + ": " + f.name + " (" + f.points + ")"; }).join(", ");
+                        out.html("<b>" + RED.utils.sanitize(r.deviceName) + "</b> – " + r.points + " points<br>Files: " +
+                            RED.utils.sanitize(files) + "<br>Units: " + RED.utils.sanitize(r.units.join(", ")));
+                        // pre-fill the key map with every unit not mapped yet
+                        var map = $("#node-input-keymap").val();
+                        var add = r.units.filter(function (u) { return map.indexOf(u + "=") < 0; })
+                            .map(function (u) { return u + "=" + u; });
+                        if (add.length) $("#node-input-keymap").val((map ? map.replace(/\s+$/, "") + "\n" : "") + add.join("\n"));
+                    })
+                    .fail(function (x) { out.text("Error: " + ((x.responseJSON && x.responseJSON.error) || x.statusText)); });
+            });
+        }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="mewtocol-dll">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-host"><i class="fa fa-globe"></i> DLL IP</label>
+        <input type="text" id="node-input-host" placeholder="192.168.31.112" style="width:45%">
+        <button type="button" class="red-ui-button" id="mewtocol-dll-scan"><i class="fa fa-search"></i> Read config</button>
+    </div>
+    <div class="form-row" style="margin-left:105px; font-size:12px" id="mewtocol-dll-scan-result"></div>
+    <div class="form-row">
+        <label for="node-input-port"><i class="fa fa-random"></i> Port</label>
+        <input type="text" id="node-input-port" style="width:80px">
+        <label for="node-input-timeout" style="width:auto; margin-left:20px">Timeout (ms)</label>
+        <input type="text" id="node-input-timeout" style="width:80px">
+        <label for="node-input-station" style="width:auto; margin-left:20px">Station</label>
+        <input type="text" id="node-input-station" style="width:50px">
+    </div>
+    <div class="form-row">
+        <label for="node-input-configsource"><i class="fa fa-file-text-o"></i> Config</label>
+        <select id="node-input-configsource" style="width:70%">
+            <option value="auto">Saved file, read from DLL only if missing</option>
+            <option value="dll">Read from DLL on every deploy (save a copy)</option>
+            <option value="file">File only (JSON or CSV)</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-configfile"><i class="fa fa-folder-open-o"></i> Config file</label>
+        <input type="text" id="node-input-configfile" placeholder="default: <userDir>/mewtocol-dll/<ip>.json">
+    </div>
+    <div class="form-row">
+        <label for="node-input-files"><i class="fa fa-filter"></i> Files</label>
+        <input type="text" id="node-input-files" placeholder="all files (or e.g. 1,2,4)">
+    </div>
+    <div class="form-row">
+        <label for="node-input-format"><i class="fa fa-sign-out"></i> Output</label>
+        <select id="node-input-format" style="width:70%">
+            <option value="device">{ "AM-1-1": { "m3": 1, ... } }</option>
+            <option value="thingsboard">ThingsBoard gateway { "AM-1-1": [ { ts, values } ] }</option>
+            <option value="flat">Flat { "AM-1-1.m3": 1 }</option>
+            <option value="list">List with details [ { name, key, value, ... } ]</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-keysource"><i class="fa fa-key"></i> Key from</label>
+        <select id="node-input-keysource" style="width:70%">
+            <option value="unit">Unit (m3, °C, kPa ...)</option>
+            <option value="file">Logging file name (Air_Gas_temp ...)</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-keymap" style="vertical-align:top"><i class="fa fa-exchange"></i> Key map</label>
+        <textarea id="node-input-keymap" style="width:70%" placeholder="°C=temp&#10;kPa=press&#10;Air_Gas_m3=m3"></textarea>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-applyscale" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-applyscale" style="width:auto;">Apply scale factor [ x 0.1 ] from the configuration</label>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-keepalive" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-keepalive" style="width:auto;">Keep connection open</label>
+    </div>
+</script>
+
+<script type="text/html" data-help-name="mewtocol-dll">
+    <p>Panasonic <b>Data Logger Light</b>: loads the logging configuration of the DLL (register names, units, data styles, scale)
+       and reads the current value of every registered point.</p>
+    <p>The configuration is read once with the same command Configurator DL uses and saved as JSON (plus a CSV copy),
+       by default in <code>&lt;userDir&gt;/mewtocol-dll/&lt;ip&gt;.json</code>. Later deploys reuse the file, so the
+       configuration is only transferred again when you ask for it.</p>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>any message</dt><dd>read all points and send telemetry on output 1.</dd>
+        <dt class="optional">topic = "reload"</dt><dd>read the configuration from the DLL again, save it and send it on output 2.</dd>
+        <dt class="optional">topic = "config"</dt><dd>send the current configuration on output 2 (<code>msg.payload</code> JSON, <code>msg.csv</code> CSV text).</dd>
+        <dt class="optional">config <span class="property-type">object | string</span></dt><dd>use this configuration (JSON object, JSON text or CSV text).</dd>
+        <dt class="optional">files <span class="property-type">array</span></dt><dd>only read these logging files, e.g. <code>[1,3]</code>.</dd>
+        <dt class="optional">format / keyMap</dt><dd>override the output format / key map for this message.</dd>
+    </dl>
+    <h3>Outputs</h3>
+    <ol class="node-ports">
+        <li>Telemetry – <code>msg.payload</code> e.g. <code>{"AM-1-1": {"m3": 123, "m3/h": 87, "temp": 30.5, "press": 0.77}}</code>,
+            <code>msg.dll</code> = { device, host, ts, points }.</li>
+        <li>Configuration – after "reload" / "config".</li>
+        <li>Error – copy of the input message with <code>error</code>, <code>errorCode</code>.</li>
+    </ol>
+    <h3>Keys</h3>
+    <p>Each register name becomes one device; each value is keyed by its <b>unit</b> (or logging file name).
+       The key map renames keys, one <code>from=to</code> per line, e.g. <code>°C=temp</code>, <code>kPa=press</code>,
+       <code>Air_Gas_m3=m3</code> or <code>file:3=temp</code>. Use <b>Read config</b> to list the units of your DLL.</p>
+    <p>Use the <i>ThingsBoard gateway</i> format with an MQTT out node on topic <code>v1/gateway/telemetry</code>.</p>
+    <h3>Data</h3>
+    <p>File N, registration k is read from <code>DT[(N-1)*1000 + (k-1)*2]</code> (2 words per point) with at most
+       26 words per command. Values are decoded with the data style of each point (DEC1W, DEC2W, HEX, Real number)
+       and multiplied by the scale factor when it is enabled.</p>
+</script>

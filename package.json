@@ -1,10 +1,10 @@
 {
   "name": "@tpro4391/node-red-tienho-mewtocol-panasonic",
-  "version": "1.0.0",
-  "description": "Panasonic PLC MEWTOCOL-COM over TCP for Node-RED: shared queued connection, read and write nodes (FP-X, FP0H, FP7, ...)",
+  "version": "1.1.0",
+  "description": "Panasonic PLC MEWTOCOL-COM over TCP for Node-RED: shared queued connection, read/write nodes and Data Logger Light (DLL) telemetry",
   "main": "lib/index.js",
   "scripts": {
-    "test": "node --test test/protocol.test.js test/client.test.js test/nodes.test.js"
+    "test": "node --test test/protocol.test.js test/client.test.js test/nodes.test.js test/dll.test.js"
   },
   "author": "Tpro4391",
   "contributors": [
@@ -12,15 +12,18 @@
   ],
   "license": "SEE LICENSE IN LICENSE",
   "keywords": [
-    "node-red",
-    "mewtocol",
-    "panasonic",
-    "plc",
+    "automation",
+    "data logger light",
+    "dll",
     "fp-x",
     "fp0h",
     "fp7",
-    "automation",
-    "industrial"
+    "industrial",
+    "mewtocol",
+    "node-red",
+    "panasonic",
+    "plc",
+    "thingsboard"
   ],
   "engines": {
     "node": ">=14"
@@ -42,7 +45,8 @@
       "Mewtocol-WCS": "mewtocol/mewtocol-wcs.js",
       "Mewtocol-WS": "mewtocol/mewtocol-ws.js",
       "Mewtocol-WK": "mewtocol/mewtocol-wk.js",
-      "Mewtocol-RAW": "mewtocol/mewtocol-raw.js"
+      "Mewtocol-RAW": "mewtocol/mewtocol-raw.js",
+      "Mewtocol-DLL": "mewtocol/mewtocol-dll.js"
     }
   },
   "files": [
