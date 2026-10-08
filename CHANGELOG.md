@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.0
+- New **FP7 tags** node (`mewtocol-fp7`) for the FP7 dynamic Modbus master program of *FP7 Modbus Configurator*:
+  reads the tag list (active flags, device names `STRING[32]`, unit keys, Modbus details) and polls `values` (REAL) +
+  `status`, output grouped by device: `{"AM-1-1": {"U1": 231.2, "kWh": 1520.4, "connect": true}}`.
+- Keys = key names of the configurator's unit key list (built-in, or `unit_keys.csv`), optional key map by name, code,
+  `index:N` or `Device.key`; same key twice in a device → `key_2`.
+- Only active tags are read; contiguous ranges are merged; standard or extended frame; tag list refreshed periodically,
+  on `reload`, and cached on disk for offline start-up.
+- Memory map configurable (defaults: actives DT1000, values DT8000, keys DT10000, status DT11000, names DT12000, 18 words/name).
+- FP7 and DLL nodes: a poll that arrives while the previous one is still running is **skipped** (status
+  "busy: n poll(s) skipped") instead of queued, so a slow PLC or a too short poll interval never makes data lag behind.
+  Load test: 50 nodes × 100 tags, 1 s poll, 5 PLCs offline/silent → ~5 % CPU, ~250 MB RSS, event loop p99 14 ms.
+- `lib/fp7.js` exported as `require('@tpro4391/node-red-tienho-mewtocol-panasonic').fp7`. Example flow `fp7-thingsboard`.
+
 ## 1.2.0
 - DLL node: connection status per device, key `"connect": true/false`. Read from the DLL status relays
   (COM1: WR0-WR15, COM2: WR20-WR35, bit = Modbus unit no., as used by Configurator DL "Current value monitor").

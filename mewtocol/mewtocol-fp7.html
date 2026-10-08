@@ -1,0 +1,194 @@
+<script type="text/javascript">
+(function () {
+    var MAP = ["tagCount", "actives", "values", "keys", "status", "names", "nameStride"];
+    var MAP_DEFAULT = { tagCount: 1000, actives: 1000, values: 8000, keys: 10000, status: 11000, names: 12000, nameStride: 18 };
+    var defaults = {
+        name: { value: "" },
+        host: { value: "", validate: function (v) { return v === "" || /^[A-Za-z0-9.\-:_]+$/.test(v); } },
+        port: { value: 9094, validate: function (v) { return /^\d+$/.test(String(v)) && +v > 0 && +v < 65536; } },
+        timeout: { value: 5000, validate: function (v) { return /^\d+$/.test(String(v)) && +v >= 100; } },
+        station: { value: "EE" },
+        framemode: { value: "standard" },
+        format: { value: "device" },
+        keymap: { value: "" },
+        keysfile: { value: "" },
+        decimals: { value: "auto" },
+        refresh: { value: 600, validate: function (v) { return /^\d+$/.test(String(v)); } },
+        readstatus: { value: true },
+        ondisconnect: { value: "null" },
+        keepalive: { value: true }
+    };
+    MAP.forEach(function (k) { defaults["map_" + k] = { value: "" }; });
+
+    RED.nodes.registerType("mewtocol-fp7", {
+        category: "Mewtocol",
+        color: "#7FB7BE",
+        defaults: defaults,
+        inputs: 1,
+        outputs: 3,
+        inputLabels: ["read (topic 'reload' = read tag list again, 'config' = output tag list)"],
+        outputLabels: ["telemetry", "tag list", "error"],
+        icon: "font-awesome/fa-tags",
+        paletteLabel: "FP7 tags",
+        label: function () { return this.name || "FP7 " + (this.host || ""); },
+        labelStyle: function () { return this.name ? "node_label_italic" : ""; },
+        oneditprepare: function () {
+            if (this.readstatus === undefined) $("#node-input-readstatus").prop("checked", true);
+            $("#node-input-keymap").css({ height: "80px", fontFamily: "monospace" });
+            MAP.forEach(function (k) { $("#node-input-map_" + k).attr("placeholder", MAP_DEFAULT[k]); });
+            $("#mewtocol-fp7-scan").on("click", function () {
+                var host = $("#node-input-host").val().trim();
+                var out = $("#mewtocol-fp7-scan-result");
+                if (!host) { out.text("Enter the IP address first."); return; }
+                out.text("Reading tag list from " + host + " ...");
+                var q = { host: host, port: $("#node-input-port").val(), station: $("#node-input-station").val(),
+                          framemode: $("#node-input-framemode").val(), keysfile: $("#node-input-keysfile").val() };
+                MAP.forEach(function (k) { var v = $("#node-input-map_" + k).val(); if (v) q["map_" + k] = v; });
+                $.getJSON("mewtocol-fp7/tags", q)
+                    .done(function (r) {
+                        out.html("<b>" + r.tags + "</b> active tags, <b>" + r.devices.length + "</b> devices<br>Devices: " +
+                            RED.utils.sanitize(r.devices.slice(0, 30).join(", ") + (r.devices.length > 30 ? " ..." : "")) +
+                            "<br>Keys: " + RED.utils.sanitize(r.keys.join(", ")));
+                    })
+                    .fail(function (x) { out.text("Error: " + ((x.responseJSON && x.responseJSON.error) || x.statusText)); });
+            });
+        }
+    });
+})();
+</script>
+
+<script type="text/html" data-template-name="mewtocol-fp7">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-host"><i class="fa fa-globe"></i> PLC IP</label>
+        <input type="text" id="node-input-host" placeholder="192.168.31.111" style="width:45%">
+        <button type="button" class="red-ui-button" id="mewtocol-fp7-scan"><i class="fa fa-search"></i> Read tags</button>
+    </div>
+    <div class="form-row" style="margin-left:105px; font-size:12px" id="mewtocol-fp7-scan-result"></div>
+    <div class="form-row">
+        <label for="node-input-port"><i class="fa fa-random"></i> Port</label>
+        <input type="text" id="node-input-port" style="width:80px">
+        <label for="node-input-timeout" style="width:auto; margin-left:20px">Timeout (ms)</label>
+        <input type="text" id="node-input-timeout" style="width:80px">
+        <label for="node-input-station" style="width:auto; margin-left:20px">Station</label>
+        <input type="text" id="node-input-station" style="width:50px">
+    </div>
+    <div class="form-row">
+        <label for="node-input-framemode"><i class="fa fa-exchange"></i> Frame</label>
+        <select id="node-input-framemode" style="width:70%">
+            <option value="standard">Standard % (27 words / command)</option>
+            <option value="extended">Extended &lt; (509 words / command, faster)</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-format"><i class="fa fa-sign-out"></i> Output</label>
+        <select id="node-input-format" style="width:70%">
+            <option value="device">{ "AM-1-1": { "kWh": 1, "U1": 230, "connect": true } }</option>
+            <option value="thingsboard">ThingsBoard gateway { "AM-1-1": [ { ts, values } ] }</option>
+            <option value="flat">Flat { "AM-1-1.kWh": 1 }</option>
+            <option value="list">List with details [ { device, key, value, ... } ]</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-keymap" style="vertical-align:top"><i class="fa fa-exchange"></i> Key map</label>
+        <textarea id="node-input-keymap" style="width:70%" placeholder="optional, e.g.&#10;A_Nm3=m3Air&#10;151=flowAir&#10;AM-1-1.TEMP=tempIn"></textarea>
+    </div>
+    <div class="form-row">
+        <label for="node-input-keysfile"><i class="fa fa-book"></i> Key list</label>
+        <input type="text" id="node-input-keysfile" placeholder="built-in (or path to unit_keys.csv)">
+    </div>
+    <div class="form-row">
+        <label for="node-input-decimals"><i class="fa fa-calculator"></i> Rounding</label>
+        <select id="node-input-decimals" style="width:70%">
+            <option value="auto">REAL precision (7 significant digits)</option>
+            <option value="catalog">Decimals from the key list</option>
+            <option value="0">0 decimals</option>
+            <option value="1">1 decimal</option>
+            <option value="2">2 decimals</option>
+            <option value="3">3 decimals</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-refresh"><i class="fa fa-refresh"></i> Tag list</label>
+        re-read every <input type="text" id="node-input-refresh" style="width:70px"> s (0 = only on deploy / "reload")
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-readstatus" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-readstatus" style="width:auto;">Read status array (adds <code>"connect": true/false</code>)</label>
+    </div>
+    <div class="form-row">
+        <label for="node-input-ondisconnect"><i class="fa fa-chain-broken"></i> Offline</label>
+        <select id="node-input-ondisconnect" style="width:70%">
+            <option value="null">Send values as null ("kWh": null, "connect": false)</option>
+            <option value="keep">Send the last value stored in the PLC</option>
+            <option value="omit">Send only "connect": false</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label>&nbsp;</label>
+        <input type="checkbox" id="node-input-keepalive" style="display:inline-block; width:auto; vertical-align:top;">
+        <label for="node-input-keepalive" style="width:auto;">Keep connection open</label>
+    </div>
+    <div class="form-row">
+        <label style="width:auto"><i class="fa fa-th"></i> Memory map (DT, leave empty for defaults)</label>
+    </div>
+    <div class="form-row" style="padding-left:20px">
+        <label for="node-input-map_actives" style="width:70px">actives</label><input type="text" id="node-input-map_actives" style="width:70px">
+        <label for="node-input-map_values" style="width:70px; margin-left:10px">values</label><input type="text" id="node-input-map_values" style="width:70px">
+        <label for="node-input-map_keys" style="width:70px; margin-left:10px">keys</label><input type="text" id="node-input-map_keys" style="width:70px">
+    </div>
+    <div class="form-row" style="padding-left:20px">
+        <label for="node-input-map_status" style="width:70px">status</label><input type="text" id="node-input-map_status" style="width:70px">
+        <label for="node-input-map_names" style="width:70px; margin-left:10px">names</label><input type="text" id="node-input-map_names" style="width:70px">
+        <label for="node-input-map_nameStride" style="width:70px; margin-left:10px">words/name</label><input type="text" id="node-input-map_nameStride" style="width:70px">
+    </div>
+    <div class="form-row" style="padding-left:20px">
+        <label for="node-input-map_tagCount" style="width:70px">tags</label><input type="text" id="node-input-map_tagCount" style="width:70px">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="mewtocol-fp7">
+    <p>Panasonic <b>FP7</b> running the dynamic Modbus master program configured with <i>FP7 Modbus Configurator</i>.
+       Reads the tag list (device name + unit key) from the PLC, then the values and status of every active tag,
+       and outputs telemetry JSON grouped by device.</p>
+    <p>Connection: MEWTOCOL-COM over TCP (FP7 CPU LAN port, default <code>9094</code>; any port can be used,
+       e.g. 60001–60010 when configured on the PLC).</p>
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>any message</dt><dd>read values + status and send telemetry on output 1.</dd>
+        <dt class="optional">topic = "reload"</dt><dd>read the tag list from the PLC again and send it on output 2.</dd>
+        <dt class="optional">topic = "config"</dt><dd>send the current tag list on output 2 (<code>msg.payload</code>, <code>msg.csv</code>).</dd>
+        <dt class="optional">format / keyMap / decimals</dt><dd>override the node setting for this message.</dd>
+    </dl>
+    <h3>Outputs</h3>
+    <ol class="node-ports">
+        <li>Telemetry – e.g. <code>{"AM-1-1": {"U1": 231.2, "kWh": 1520.4, "connect": true}}</code>,
+            <code>msg.fp7</code> = { host, ts, tags, devices, disconnected }.</li>
+        <li>Tag list – after "reload" / "config".</li>
+        <li>Error – copy of the input message with <code>error</code>, <code>errorCode</code>.</li>
+    </ol>
+    <h3>Device and keys</h3>
+    <p>Every tag name (<i>Device</i> column of the configurator) becomes one device object. Tags with the same
+       device name are grouped. The value key is the <b>key name</b> of the code stored in <code>keys</code>
+       (1 = <code>kWh</code>, 3 = <code>I1</code>, 7 = <code>U1</code>, 150 = <code>A_Nm3</code> …, see the
+       configurator's unit key list). Tags without key get <code>tag&lt;index&gt;</code>; a key used twice in one
+       device becomes <code>key_2</code>.</p>
+    <p><b>Key map</b> (optional) renames keys, one <code>from=to</code> per line. <i>from</i> can be the key name
+       (<code>A_Nm3=m3Air</code>), the key code (<code>151=flowAir</code>), <code>index:12=x</code> or
+       <code>Device.key=x</code> for a single device.</p>
+    <p><b>Key list</b>: leave empty for the built-in list, or give the path of <code>unit_keys.csv</code> of the
+       configurator when you added your own codes.</p>
+    <h3>Status</h3>
+    <p><code>status</code> 1 = OK, 0 = device does not answer, -1 = not read yet. A device is
+       <code>"connect": true</code> only when all its tags are OK. Values of tags that are not OK are sent as
+       <code>null</code> by default.</p>
+    <h3>Reading</h3>
+    <p>The tag list (active flags, keys, names, Modbus details) is read on deploy, every <i>Tag list</i> seconds
+       and on "reload"; it is cached in <code>&lt;userDir&gt;/mewtocol-fp7/</code> so the node can start while the
+       PLC is offline. Each poll only reads <code>values</code> and <code>status</code> of the active tags.
+       Use the <i>Extended</i> frame for many tags.</p>
+</script>

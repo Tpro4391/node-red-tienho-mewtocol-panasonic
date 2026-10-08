@@ -130,6 +130,15 @@ module.exports = function (RED) {
             send = send || function () { node.send.apply(node, arguments); };
             done = done || function (err) { if (err) node.error(err, msg); };
             const topic = String(msg.topic || '').toLowerCase();
+            const isPoll = !(topic === 'reload' || topic === 'config' || msg.reload === true);
+            // a poll is still running (slow PLC / poll interval shorter than the read time):
+            // drop this one instead of queueing it, so data never lags behind and memory stays flat
+            if (isPoll && node.polling) {
+                node.skipped = (node.skipped || 0) + 1;
+                status('yellow', 'ring', 'busy: ' + node.skipped + ' poll(s) skipped');
+                return done();
+            }
+            if (isPoll) node.polling = true;
             try {
                 if (msg.config && (typeof msg.config === 'object' || typeof msg.config === 'string')) {
                     node.cfg = DLL.parseConfig(msg.config);
@@ -163,6 +172,8 @@ module.exports = function (RED) {
                 done();
             } catch (err) {
                 errorOut(msg, err, send, done);
+            } finally {
+                if (isPoll) node.polling = false;
             }
 
             function emitConfig() {

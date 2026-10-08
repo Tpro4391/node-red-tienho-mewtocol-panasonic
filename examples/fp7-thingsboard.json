@@ -1,0 +1,158 @@
+[
+    {
+        "id": "c_fp7",
+        "type": "comment",
+        "name": "FP7 tags (FP7 Modbus Configurator) -> ThingsBoard gateway API. Set the PLC IP / MEWTOCOL port and the MQTT broker.",
+        "info": "",
+        "x": 420,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "poll",
+        "type": "inject",
+        "name": "every 60 s",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "60",
+        "once": true,
+        "onceDelay": "3",
+        "payload": "",
+        "payloadType": "date",
+        "x": 130,
+        "y": 100,
+        "wires": [
+            [
+                "fp7"
+            ]
+        ]
+    },
+    {
+        "id": "reload",
+        "type": "inject",
+        "name": "reload tag list",
+        "props": [
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "once": false,
+        "topic": "reload",
+        "x": 140,
+        "y": 160,
+        "wires": [
+            [
+                "fp7"
+            ]
+        ]
+    },
+    {
+        "id": "fp7",
+        "type": "mewtocol-fp7",
+        "name": "",
+        "host": "192.168.31.111",
+        "port": "9094",
+        "timeout": "5000",
+        "station": "EE",
+        "framemode": "standard",
+        "format": "thingsboard",
+        "keymap": "",
+        "keysfile": "",
+        "decimals": "auto",
+        "refresh": "600",
+        "readstatus": true,
+        "ondisconnect": "null",
+        "keepalive": true,
+        "x": 340,
+        "y": 120,
+        "wires": [
+            [
+                "mqtt",
+                "dbg"
+            ],
+            [
+                "dbgcfg"
+            ],
+            [
+                "dbgerr"
+            ]
+        ],
+        "map_tagCount": "",
+        "map_actives": "",
+        "map_values": "",
+        "map_keys": "",
+        "map_status": "",
+        "map_names": "",
+        "map_nameStride": ""
+    },
+    {
+        "id": "mqtt",
+        "type": "mqtt out",
+        "name": "ThingsBoard gateway",
+        "topic": "v1/gateway/telemetry",
+        "qos": "1",
+        "retain": "false",
+        "broker": "tb",
+        "x": 600,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "dbg",
+        "type": "debug",
+        "name": "telemetry",
+        "active": true,
+        "tosidebar": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 580,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "dbgcfg",
+        "type": "debug",
+        "name": "tag list",
+        "active": true,
+        "tosidebar": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 590,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "dbgerr",
+        "type": "debug",
+        "name": "error",
+        "active": true,
+        "tosidebar": true,
+        "complete": "error",
+        "targetType": "msg",
+        "x": 570,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "tb",
+        "type": "mqtt-broker",
+        "name": "ThingsBoard",
+        "broker": "thingsboard.local",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "credentials": {
+            "user": "GATEWAY_ACCESS_TOKEN",
+            "password": ""
+        }
+    }
+]

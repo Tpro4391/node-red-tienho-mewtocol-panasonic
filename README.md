@@ -54,6 +54,7 @@ Requires Node-RED ≥ 2.0 and Node.js ≥ 14.
 | **WK**  | `WK`  | Write timer/counter elapsed values |
 | **RAW** | any   | Send any command body, e.g. `RDD0000000009` |
 | **DLL** | `#3A`, `RD` | Data Logger Light: load configuration, read all points, telemetry JSON (ThingsBoard) |
+| **FP7 tags** | `RD` | FP7 dynamic Modbus program (FP7 Modbus Configurator): tag list (device + unit key) and values/status → telemetry JSON |
 
 Every node has two outputs: **1 = result**, **2 = error**.
 
@@ -128,6 +129,40 @@ const plc = new MewtocolClient({ host: '192.168.31.112', maxReadWords: 26 });
 const cfg = await dll.readConfig(plc);
 const payload = dll.buildPayload(await dll.readValues(plc, cfg), { keyMap: '°C=temp,kPa=press' });
 ```
+
+## FP7 tags (FP7 Modbus Configurator) → server
+
+The **FP7 tags** node reads a Panasonic FP7 running the *dynamic Modbus master* program that is configured with
+**FP7 Modbus Configurator** (arrays `actives`, `values`, `keys`, `status`, `names` in DT). It connects with
+MEWTOCOL-COM over TCP – default port `9094`, any port can be set (e.g. 60001–60010 when configured on the PLC).
+
+1. Enter the PLC IP / port and press **Read tags**: number of active tags, devices and keys are listed.
+2. Every poll (any input message) reads only `values` + `status` of the active tags and sends:
+
+```json
+{
+  "AM-1-1":    { "A_Nm3": 144370.4, "A_Nm3h": 446.89, "TEMP": 28.5, "P_kPa": 497.8, "connect": true },
+  "ADL400_VP": { "U1": 231.2, "U2": 229.9, "U3": 230.4, "kWh": 1520.4, "connect": true }
+}
+```
+
+* **Device** = tag name (`names`, the *Device* column of the configurator); tags with the same name are grouped.
+* **Key** = key name of the code in `keys` (1 = `kWh`, 3 = `I1`, 7 = `U1`, 150 = `A_Nm3` … same list as
+  `unit_keys.csv`). Optional **Key map** to rename: `A_Nm3=m3Air`, `151=flowAir`, `AM-1-1.TEMP=tempIn`.
+  **Key list**: path of the configurator's `unit_keys.csv` if you added your own codes.
+* `"connect"` from the `status` array (1 OK / 0 offline / -1 not read yet); a device is `true` only when all its tags are OK.
+  Values of tags that are not OK are `null` (option: keep / omit).
+* Values are REAL: rounded to REAL precision (7 significant digits) or a fixed number of decimals.
+* The tag list is read on deploy, every 600 s (configurable) and on `topic = "reload"`, and cached in
+  `<userDir>/mewtocol-fp7/` so the node starts while the PLC is offline. Use the *Extended* frame for many tags.
+* Output formats: device object, ThingsBoard gateway, flat, list. Example flow: `examples/fp7-thingsboard.json`.
+
+### Many PLCs / DLLs in one Node-RED
+
+Use one FP7 / DLL node per device; each node has its own TCP connection and queue, so a slow or offline device
+never blocks the others. A poll that arrives while the previous read of the same node is still running is skipped
+(status *busy*), so choose a poll interval longer than the read time shown in `msg.fp7` / the node status.
+Tested with 50 nodes × 100 tags polled every second (5 devices offline): ~5 % CPU, ~250 MB RSS, event loop p99 14 ms.
 
 ## Using the library without Node-RED
 

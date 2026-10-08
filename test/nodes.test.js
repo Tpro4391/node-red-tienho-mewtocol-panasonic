@@ -47,7 +47,7 @@ async function run(nodeDef, msgs, extraCfg) {
 
 test('all node types load', async () => {
     const types = Object.keys(pkg['node-red'].nodes).length;
-    assert.equal(types, 16);
+    assert.equal(types, 17);
     await helper.load(nodeFiles, [cfg()]);
     assert.ok(helper.getNode('c1').client);
 });

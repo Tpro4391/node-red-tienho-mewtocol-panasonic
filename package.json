@@ -1,10 +1,10 @@
 {
   "name": "@tpro4391/node-red-tienho-mewtocol-panasonic",
-  "version": "1.2.0",
-  "description": "Panasonic PLC MEWTOCOL-COM over TCP for Node-RED: shared queued connection, read/write nodes and Data Logger Light (DLL) telemetry",
+  "version": "1.3.0",
+  "description": "Panasonic PLC MEWTOCOL-COM over TCP for Node-RED: shared queued connection, read/write nodes, Data Logger Light (DLL) and FP7 dynamic Modbus tag telemetry",
   "main": "lib/index.js",
   "scripts": {
-    "test": "node --test test/protocol.test.js test/client.test.js test/nodes.test.js test/dll.test.js"
+    "test": "node --test test/protocol.test.js test/client.test.js test/nodes.test.js test/dll.test.js test/fp7.test.js"
   },
   "author": "Tpro4391",
   "contributors": [
@@ -20,9 +20,11 @@
     "fp7",
     "industrial",
     "mewtocol",
+    "modbus",
     "node-red",
     "panasonic",
     "plc",
+    "telemetry",
     "thingsboard"
   ],
   "engines": {
@@ -46,7 +48,8 @@
       "Mewtocol-WS": "mewtocol/mewtocol-ws.js",
       "Mewtocol-WK": "mewtocol/mewtocol-wk.js",
       "Mewtocol-RAW": "mewtocol/mewtocol-raw.js",
-      "Mewtocol-DLL": "mewtocol/mewtocol-dll.js"
+      "Mewtocol-DLL": "mewtocol/mewtocol-dll.js",
+      "Mewtocol-FP7": "mewtocol/mewtocol-fp7.js"
     }
   },
   "files": [
